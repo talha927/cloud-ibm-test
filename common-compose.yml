@@ -1,0 +1,70 @@
+# Create docker network before deploying this docker-compose file using following command
+# docker network create --driver bridge vpcplus_network || true
+
+version: '3.9'
+
+services:
+
+  mysqldb:
+    image: mysql:8.0.32
+    container_name: mysqldb
+    environment:
+      ENV_IBM_DB_NAME: ibmdb
+      ENV_IBM_DB_MYSQL_USER: webuser
+      ENV_IBM_DB_MYSQL_PASSWORD: admin123
+      MYSQL_ROOT_PASSWORD: admin123
+    volumes:
+      - ibmdbvolume:/var/lib/mysql
+    networks:
+      - default
+      - vpcplus_network
+    profiles: [ "mysqldb", "basic-setup" ]
+
+  frontend:
+    image: wancloudsinc/doosra-vpc-frontend:draas-stg-v1.4 # Use this, or you can use Front-end Locally
+    #    build: ../doosra-Frontend/
+    container_name: frontend
+    entrypoint: /opt/app/bin/run_app.sh
+    environment:
+      NODE_ENV: 'development'
+      REACT_APP_API_URL: 'https://draas-stage.wanclouds.net/' # Use your instance Dns here
+      PORT: 3000
+      REACT_APP_TRANSIT_GATEWAY: disabled
+      REACT_APP_AWS: enabled
+      REACT_APP_IBM: enabled
+      REACT_APP_GCP: enabled
+      REACT_APP_AZURE: enabled
+      REACT_APP_DISASTER_RECOVERY: enabled
+      REACT_APP_ON_PREM: disabled
+      REACT_APP_VM_DISASTER_RECOVERY: enabled
+      REACT_APP_DB_MIGRATIONS: disabled
+      REACT_APP_AUTH_REDIRECT_URI: https://draas-stage.wanclouds.net/users/wc/callback # Use your Instance Dns here
+      REACT_APP_COMPLIANCE_POLICIES: enabled
+      REACT_APP_CLOUD_TO_CLOUD_MIGRATION: enabled
+      REACT_APP_DB_MIGRATION_BINARY_FILE_SERVER_DIR: draas-stage
+      REACT_APP_LOGIN_WITH_IBM_ID: disabled
+      REACT_APP_LOGIN_WITH_WANCLOUDS_ID: enabled
+    networks:
+      - default
+      - vpcplus_network
+    profiles: [ "frontend" ]
+
+  nginx:
+    image: wancloudsinc/netorc-nginx:1163892
+    container_name: nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+    networks:
+      - default
+      - vpcplus_network
+    profiles: [ "nginx" ]
+
+volumes:
+  ibmdbvolume:
+
+networks:
+  vpcplus_network:
+    external: true

@@ -1,0 +1,330 @@
+### In "imageworker" change the placeholder "SL_USERNAME: & SL_API_KEY:" with IBM Classical Infra "Username" and "API key"
+### change the placeholder "WEBHOOK_BASE_URL:" to Your Instance PUBLIC IP
+
+# Create docker network before deploying this docker-compose file using following command
+# docker network create --driver bridge vpcplus_network || true
+
+version: '3.9'
+
+services:
+
+  vpcplus_ibm-redis:
+    image: redis:latest
+    container_name: vpcplus_ibm-redis
+    networks:
+      - default
+      - vpcplus_network
+    profiles: [ "redis", "basic-setup" ]
+
+  vpcplus_ibm-workflow_worker:
+    image: vpcplus_ibm-image
+    depends_on:
+      - vpcplus_ibm-web
+    container_name: vpcplus_ibm-workflow_worker
+    entrypoint: /vpcplus-ibm-be/bin/run_worker.sh
+    environment:
+      VPCPLUS_LINK: https://migrate-test.wanclouds.net/
+      DEPLOYED_INSTANCE: "None"
+      SUBSCRIPTION_APP_HOST: http://subscription-svc:8000
+      SUBSCRIPTION_APP_VERSION: 'v1'
+      SUBSCRIPTION_APP_API_KEY: 'testKey123'
+      DB_MIGRATION_CONTROLLER_HOST: "https://draas-dev.wanclouds.net/"
+      DB_MIGRATION_API_KEY: "abc123!"
+      # draas-prod, draas-preprod, draas-stage, draas-dev, draas, vpc-preprod, vpc
+      # dbMigrationBinaryFileServerDir should also have the same value for FE too
+      DB_MIGRATION_INSTANCE_TYPE: "vpc"
+    volumes:
+      - .:/vpcplus-ibm-be
+    networks:
+      - default
+      - vpcplus_network
+    profiles: [ "workflow_worker", "basic-setup" ]
+
+  vpcplus_ibm-sync_worker:
+    image: vpcplus_ibm-image
+    depends_on:
+      - vpcplus_ibm-web
+    container_name: vpcplus_ibm-sync_worker
+    entrypoint: /vpcplus-ibm-be/bin/run_sync_worker.sh
+    volumes:
+      - .:/vpcplus-ibm-be
+    environment:
+      GRPC_TRACE: "" # set "all" for logs incase you are debugging
+      GRPC_VERBOSITY: INFO # DEBUG for debugging issues
+      USE_TLS: "true"
+      ENV_MANGOS_IBM_GRPC_API_KEY: "eb967d3e-be2c-411a-9a5c-a83c5bd79136"
+      ENV_MANGOS_IBM_GRPC_HOST: draas-stage-grpc.wanclouds.net
+      ENV_MANGOS_IBM_GRPC_PORT: 443
+      ENV_PROD: "false"
+      VPCPLUS_LINK: https://draas-stage.wanclouds.net/
+    networks:
+      - default
+      - vpcplus_network
+    profiles: [ "sync_worker", "basic-setup" ]
+
+  vpcplus_ibm-workflow_manager:
+    image: vpcplus_ibm-image
+    depends_on:
+      - vpcplus_ibm-web
+    container_name: vpcplus_ibm-workflow_manager
+    entrypoint: /vpcplus-ibm-be/bin/run_ibm_workflow_manager.sh
+    volumes:
+      - .:/vpcplus-ibm-be
+    networks:
+      - default
+      - vpcplus_network
+    profiles: [ "workflow_manager", "basic-setup" ]
+
+  vpcplus_ibm-workflow_initiator:
+    image: vpcplus_ibm-image
+    depends_on:
+      - vpcplus_ibm-web
+    container_name: vpcplus_ibm-workflow_initiator
+    entrypoint: /vpcplus-ibm-be/bin/run_ibm_workflow_initiator.sh
+    volumes:
+      - .:/vpcplus-ibm-be
+    networks:
+      - default
+      - vpcplus_network
+    profiles: [ "workflow_initiator", "basic-setup" ]
+
+  vpcplus_ibm-workspace_manager:
+    image: vpcplus_ibm-image
+    depends_on:
+      - vpcplus_ibm-web
+    container_name: vpcplus_ibm-workspace_manager
+    entrypoint: /vpcplus-ibm-be/bin/run_ibm_workspace_manager.sh
+    volumes:
+      - .:/vpcplus-ibm-be
+    networks:
+      - default
+      - vpcplus_network
+    profiles: [ "workspace_manager", "basic-setup" ]
+
+  vpcplus_ibm-workspace_initiator:
+    image: vpcplus_ibm-image
+    depends_on:
+      - vpcplus_ibm-web
+    container_name: vpcplus_ibm-workspace_initiator
+    entrypoint: /vpcplus-ibm-be/bin/run_ibm_workspace_initiator.sh
+    volumes:
+      - .:/vpcplus-ibm-be
+    networks:
+      - default
+      - vpcplus_network
+    profiles: [ "workspace_initiator", "basic-setup" ]
+
+  vpcplus_ibm-image_worker:
+    image: vpcplus_ibm-image
+    depends_on:
+      - vpcplus_ibm-web
+    container_name: vpcplus_ibm-image_worker
+    entrypoint: /vpcplus-ibm-be/bin/run_image_worker.sh
+    volumes:
+      - .:/vpcplus-ibm-be
+    environment:
+      SL_USERNAME: danny@wanclouds
+      SL_API_KEY: 9f9473d44da206bfaf96a673369e84124606cdde6d7f69194c28c21604edaef9
+      WEBHOOK_BASE_URL: https://migrate-test.wanclouds.net/v1/ibm/image_conversion/
+      FLASK_CONFIG: development
+      DEPLOYED_INSTANCE: "None"
+    networks:
+      - default
+      - vpcplus_network
+    profiles: [ "image_worker" ]
+
+  vpcplus_ibm-web:
+    restart: always
+    build: .
+    image: vpcplus_ibm-image
+    container_name: vpcplus_ibm-web
+    entrypoint: /vpcplus-ibm-be/bin/run_web.sh
+    environment:
+      AUTH_LINK: https://draas-stage.wanclouds.net/
+      VPCPLUS_LINK: https://migrate-test.wanclouds.net/
+      ADMIN_APPROVAL_REQUIRED: 'False' # True/False
+      IS_MULTI_TENANCY_ENABLE: 'False' # True/False
+      IBM_ENV_X_API_KEY: "drass_api_key"
+      DB_MIGRATION_API_KEY: "abc123!"
+      DB_MIGRATION_CONTROLLER_HOST: "https://draas-dev.wanclouds.net/"
+      # draas-prod, draas-preprod, draas-stage, draas-dev, draas, vpc-preprod, vpc
+      # dbMigrationBinaryFileServerDir should also have the same value for FE too
+      DB_MIGRATION_INSTANCE_TYPE: "vpc"
+    volumes:
+      - .:/vpcplus-ibm-be
+    networks:
+      - vpcplus_network
+      - default
+    profiles: [ "web", "basic-setup" ]
+
+  vpcplus_ibm-scheduler:
+    build: .
+    image: vpcplus_ibm-image
+    depends_on:
+      - vpcplus_ibm-web
+    container_name: vpcplus_ibm-scheduler
+    entrypoint: /vpcplus-ibm-be/bin/run_scheduler.sh
+    volumes:
+      - .:/vpcplus-ibm-be
+    networks:
+      - default
+      - vpcplus_network
+    profiles: [ "scheduler", "basic-setup" ]
+
+  vpcplus_ibm-discovery_scheduler:
+    image: vpcplus_ibm-image
+    container_name: vpcplus_ibm-discovery_scheduler
+    entrypoint: /vpcplus-ibm-be/bin/run_ibm_discovery_scheduler.sh
+    volumes:
+      - .:/vpcplus-ibm-be
+    depends_on:
+      - vpcplus_ibm-web
+    networks:
+      - default
+      - vpcplus_network
+    profiles: [ "discovery_scheduler", "basic-setup" ]
+
+  vpcplus_ibm-discovery_initiator:
+    image: vpcplus_ibm-image
+    container_name: vpcplus_ibm-discovery_initiator
+    entrypoint: /vpcplus-ibm-be/bin/run_ibm_discovery_initiator.sh
+    volumes:
+      - .:/vpcplus-ibm-be
+    depends_on:
+      - vpcplus_ibm-web
+    networks:
+      - default
+      - vpcplus_network
+    profiles: [ "discovery_initiator", "basic-setup" ]
+
+  vpcplus_ibm-discovery_executor:
+    image: vpcplus_ibm-image
+    container_name: vpcplus_ibm-discovery_executor
+    depends_on:
+      - vpcplus_ibm-web
+    entrypoint: /vpcplus-ibm-be/bin/run_ibm_discovery_executor.sh
+    volumes:
+      - .:/vpcplus-ibm-be
+    environment:
+      USE_TLS: "true"
+      ENV_MANGOS_IBM_GRPC_API_KEY: "eb967d3e-be2c-411a-9a5c-a83c5bd79136"
+      ENV_MANGOS_IBM_GRPC_HOST: draas-stage-grpc.wanclouds.net
+      ENV_MANGOS_IBM_GRPC_PORT: 443
+      FLASK_CONFIG: development
+    networks:
+      - default
+      - vpcplus_network
+    profiles: [ "discovery_executor", "basic-setup" ]
+
+  vpcplus_ibm-discovery_worker:
+    image: vpcplus_ibm-image
+    container_name: vpcplus_ibm-discovery_worker
+    entrypoint: /vpcplus-ibm-be/bin/run_ibm_discovery_worker.sh
+    volumes:
+      - .:/vpcplus-ibm-be
+    environment:
+      USE_TLS: "true"
+      ENV_MANGOS_IBM_GRPC_API_KEY: "eb967d3e-be2c-411a-9a5c-a83c5bd79136"
+      ENV_MANGOS_IBM_GRPC_HOST: draas-stage-grpc.wanclouds.net
+      ENV_MANGOS_IBM_GRPC_PORT: 443
+      FLASK_CONFIG: development
+    depends_on:
+      - vpcplus_ibm-web
+    networks:
+      - default
+      - vpcplus_network
+    profiles: [ "discovery_worker", "basic-setup" ]
+
+  vpcplus_ibm-recommendations_worker:
+    image: vpcplus_ibm-image
+    container_name: vpcplus_ibm-recommendations_worker
+    entrypoint: /vpcplus-ibm-be/bin/run_ibm_recommendations_worker.sh
+    networks:
+      - default
+      - vpcplus_network
+    volumes:
+      - .:/vpcplus-ibm-be
+    profiles: [ "recommendation_worker", "cost-setup" ]
+
+  vpcplus_ibm-translation_worker:
+    restart: always
+    image: vpcplus_ibm-image
+    container_name: vpcplus_ibm-translation_worker
+    entrypoint: /vpcplus-ibm-be/bin/run_ibm_translation_worker.sh
+    environment:
+      VPCPLUS_LINK: https://draas-stage.wanclouds.net/
+      AWS_ENV_X_API_KEY: 96c7062d-9cee-4696-aaf7-b913e4dd33fe
+    volumes:
+      - .:/vpcplus-ibm-be
+    networks:
+      - default
+      - vpcplus_network
+    profiles: [ "translation_worker" ]
+
+  vpcplus_ibm-disaster_recovery_worker:
+    restart: always
+    image: vpcplus_ibm-image
+    container_name: vpcplus_ibm-disaster_recovery_worker
+    entrypoint: /vpcplus-ibm-be/bin/run_ibm_disaster_recovery_worker.sh
+    environment:
+      ENV_DRASS_VELERO_API_KEY: mykey123
+      ENV_DRASS_VELERO_HOST: https://draas-stage-kube-migration.wanclouds.net
+      ENV_DRASS_VELERO_VERSION: "/v1/kube/task"
+      VPCPLUS_LINK: https://draas-stage.wanclouds.net/
+    volumes:
+      - .:/vpcplus-ibm-be
+    networks:
+      - default
+      - vpcplus_network
+    profiles: [ "disaster_recovery_worker", "draas-setup" ]
+
+  vpcplus_ibm-ttl_manager:
+    restart: always
+    image: vpcplus_ibm-image
+    container_name: vpcplus_ibm-ttl_manager
+    entrypoint: /vpcplus-ibm-be/bin/run_ibm_ttl_manager.sh
+    volumes:
+      - .:/vpcplus-ibm-be
+    networks:
+      - default
+      - vpcplus_network
+    profiles: [ "ttl_manager_worker" ]
+
+  vpcplus_ibm-consumption_worker:
+    restart: always
+    image: vpcplus_ibm-image
+    container_name: vpcplus_ibm-consumption_worker
+    entrypoint: /vpcplus-ibm-be/bin/run_ibm_consumption_worker.sh
+    environment:
+      ENV_CONSUMPTION_APP_API_KEY: "testKey123"
+      ENV_CONSUMPTION_APP_HOST: https://draas.wanclouds.net/
+      ENV_CONSUMPTION_APP_PORT: 8000
+      ENV_CONSUMPTION_APP_VERSION: v1
+      ENV_SUBSCRIPTION_APP_API_KEY: "testKey123"
+      ENV_SUBSCRIPTION_APP_HOST: https://draas.wanclouds.net/
+      ENV_SUBSCRIPTION_APP_VERSION: v1
+    volumes:
+      - .:/vpcplus-ibm-be
+    networks:
+      - vpcplus_network
+      - default
+    profiles: [ "consumption_worker" ] # should we enable this as a basic setup ?
+
+  vpcplus_ibm-cost_analyzer_worker:
+    restart: always
+    image: vpcplus_ibm-image
+    container_name: vpcplus_ibm-cost_analyzer_worker
+    entrypoint: /vpcplus-ibm-be/bin/run_ibm_cost_analyzer_worker.sh
+    volumes:
+      - .:/vpcplus-ibm-be
+    networks:
+      - vpcplus_network
+      - default
+    profiles: [ "cost_analyzer_worker", "cost-setup" ]
+
+volumes:
+  ibmdbvolume:
+
+networks:
+  vpcplus_network:
+    external: true

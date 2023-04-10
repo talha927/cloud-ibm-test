@@ -1,0 +1,1 @@
+LIST_RESOURCE_GROUPS_PATH = "cost"

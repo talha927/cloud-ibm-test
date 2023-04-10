@@ -1,0 +1,20 @@
+LIST_SUBNETS_PATHS = "subnets"
+CREATE_SUBNET_PATH = "subnets"
+DELETE_SUBNET_PATH = "subnets/{subnet_id}"
+GET_SUBNET_PATH = "subnets/{subnet_id}"
+UPDATE_SUBNET_PATH = "subnets/{subnet_id}"
+
+GET_ATTACHED_ACL_PATH = "subnets/{subnet_id}/network_acl"
+ATTACH_ACL_TO_SUBNET_PATH = "subnets/{subnet_id}/network_acl"
+
+DETACH_PUBLIC_GATEWAY_FROM_SUBNET_PATH = "subnets/{subnet_id}/public_gateway"
+GET_ATTACHED_PUBLIC_GATEWAY_TO_SUBNET_PATH = "subnets/{subnet_id}/public_gateway"
+ATTACH_PUBLIC_GATEWAY_TO_SUBNET_PATH = "subnets/{subnet_id}/public_gateway"
+
+GET_ROUTING_TABLE_ATTACHED_TO_SUBNET_PATH = "subnets/{subnet_id}/routing_table"
+ATTACH_ROUTING_TABLE_TO_SUBNET_PATH = "subnets/{subnet_id}/routing_table"
+LIST_RESERVED_IPS_IN_SUBNET_PATH = "subnets/{subnet_id}/reserved_ips"
+REVERSE_IP_IN_SUBNET_PATH = "subnets/{subnet_id}/reserved_ips"
+RELEASE_SUBNET_RESERVED_IP_PATH = "subnets/{subnet_id}/reserved_ips/{id}"
+GET_SUBNET_RESERVED_IP_PATH = "subnets/{subnet_id}/reserved_ips/{id}"
+UPDATE_SUBNET_RESERVED_IP_PATH = "subnets/{subnet_id}/reserved_ips/{id}"
